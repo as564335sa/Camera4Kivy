@@ -28,7 +28,7 @@ class PreviewCommon(Widget):
     #############################################
 
     def set_aspect_ratio(self, aspect_ratio):
-        if aspect_ratio in ['4:3', '16:9']:
+        if aspect_ratio in ['1:1','4:3', '16:9']:
             self.aspect_ratio = aspect_ratio
 
     def set_orientation(self, orientation):
@@ -59,6 +59,8 @@ class PreviewCommon(Widget):
 
         if self.aspect_ratio == "4:3":
             aspect = 4/3
+        elif self.aspect_ratio == "1:1":
+            aspect = 1/1
         else:
             aspect = 16/9
             
