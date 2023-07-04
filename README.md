@@ -3,7 +3,7 @@ Camera4Kivy
 
 *Yet Another Camera for Kivy*
 
-2023/02/09 : Android users: camerax_provider has been updated to version 0.0.3
+2023/02/09 : Android users: camerax_provider has been updated to version 0.0.3, and when updating see also [enable_video](#enable_video).
 
 - [Overview](#overview)
 - [Install](#install)
@@ -32,12 +32,14 @@ Camera4Kivy
       - [mirrored](#mirrored)
       - [filepath_callback](#filepath_callback)
       - [sensor_resolution](#sensor_resolution)
+      - [sensor_rotation](#sensor_rotation)
       - [default_zoom](#default_zoom)
       - [analyze_pixels_resolution](#analyze_pixels_resolution)
       - [enable_analyze_pixels](#enable_analyze_pixels)
       - [enable_analyze_imageproxy](#enable_analyze_imageproxy)
       - [enable_zoom_gesture](#enable_zoom_gesture)
       - [enable_focus_gesture](#enable_focus_gesture)
+      - [enable_video](#enable_video)
       - [imageproxy_data_format](#imageproxy_data_format)
     + [Disconnect Camera](#disconnect-camera)
     + [Capture](#capture)
@@ -46,6 +48,7 @@ Camera4Kivy
       - [name](#name)
     + [Select Camera](#select-camera)
     + [Zoom](#zoom)
+    + [Pan/scroll](#panscroll)
     + [Flash](#flash)
     + [Torch](#torch)
     + [Focus](#focus)
@@ -71,13 +74,12 @@ Camera4Kivy
   * [OpenCV](#opencv)
   * [GStreamer](#gstreamer)
   * [Picamera](#picamera)
-  * [Picamera2](#picamera2)
   * [AVFoundation](#avfoundation)
 - [Known Behavior](#known-behavior)
-  * [Behavior: Android .mp4 Orientation](#behavior--android-mp4-orientation)
-  * [Behavior: Android .jpg Orientation.](#behavior--android-jpg-orientation)
-  * [Behavior: Android armeabi-v7a build installed on an arm64-v8a device](#behavior--android-armeabi-v7a-build-installed-on-an-arm64-v8a-device)
-  * [Behavior: Android "No supported surface combination"](#behavior--android--no-supported-surface-combination-)
+  * [Behavior: Android .mp4 Orientation](#behavior-android-mp4-orientation)
+  * [Behavior: Android .jpg Orientation.](#behavior-android-jpg-orientation)
+  * [Behavior: Android armeabi-v7a build installed on an arm64-v8a device](#behavior-android-armeabi-v7a-build-installed-on-an-arm64-v8a-device)
+  * [Behavior: Android "No supported surface combination"](#behavior-android-no-supported-surface-combination)
 
 ## Overview
 
@@ -231,18 +233,23 @@ Object classification. Illustrates using a large Tensorflow Lite model, and writ
 | MLKit | | | | :heavy_check_mark: | | |
 | TFLite   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | | :heavy_check_mark: |
 
-- Windows : Windows 11, i7-10 @ 1.1GHz, Python 3.8.2  Kivy==2.1.0.dev0
+- Windows : Windows 11, i7-10 @ 1.1GHz, Python 3.11.1  Kivy==2.2.0.dev0
 - Windows : Windows 10, i3-7 @ 2.4GHz, Python 3.9.7 Kivy==2.0.0
 - Macos   : Big Sur,  i5-10 @ @ 1.1GHz, Python 3.9.9 Kivy==2.0.0
 - Linux   : Raspberry Buster, Cortex-A72 @ 1.5GHz Python3.7.3 Kivy==2.0.0
-- Android : build : arm64-v8a  device: Android 12, Pixel 5
+- Linux   : Raspberry Bullseye, Cortex-A72 @ 1.5GHz Python3.9.2 Kivy==2.1.0
+- Android : build : arm64-v8a  device: Android 12, Pixel 5 3.10.6 Kivy==2.2.0.dev0
 - Android : build : armeabi-v7a device: Android 6, Nexus 5  Start is somewhat slow.
 - iOS     : iPhone SE (second generation)
 - Coral   : [Accelerator](https://coral.ai/products/accelerator) tested with Windows 11 , gave very approximately an order of magnitude speed up.
 
 ## Preview Widget
 
-An app can have multiple `Preview` widgets, but only one can be connected to the physical camera unit at a time. A natural way to implement this is to add a preview widget to a screen's contents, then connect to the camera unit `on_enter` and disconnect `on_pre_leave`. Or if using a ModalView, Popup, or MDDialog use `on_open` and `on_pre_dismiss`. The C4K-Photo-Example illustrates this, the other examples simply connect the camera after `on_start()` and disconnect `on_stop()`.
+An app can have multiple `Preview` widgets instantiated, but only one can be connected to the physical camera unit at a time. A natural way to implement this is to add a Preview widget to a screen's contents, then connect to the camera unit `on_enter` and disconnect `on_pre_leave`. Or if using a ModalView, Popup, or MDDialog use `on_open` and `on_pre_dismiss`. The C4K-Photo-Example illustrates the screen case.
+
+The other examples simply connect the camera **after** `on_start()` and disconnect `on_stop()`. The **after** `on_start` is required on Android; both for reliable camera function, and so that the camera is only connected after CAMERA permission has been granted.
+
+There is one special case. For the **first** screen, Kivy calls `on_enter` before `on_start`. This violates the requirements described in the previous paragraph. For a Preview used in the **first screen only**, connect the camera after `on_start` and after CAMERA permission has been granted, and not from `on_enter`.  
 
 ### Preview Widget Properties
 
@@ -291,8 +298,11 @@ The filepath_callback can also be used to reset any 'video recording' indicator 
 ##### sensor_resolution
 Overrides the default sensor resolution, which is the highest resolution available, except Raspberry Pi where it is (1024, 768). Tuple of two integers, for example `sensor_resolution = (640, 480)`. The resulting capture resolution obtained depends on the behavior of the camera provider (for example it is ignored by GStreamer). The capture resolution also depends on the relative orientation and aspect ratio of the Preview. Treat the value specified as a request that may not be exactly honored.
 
+##### sensor_rotation
+On Picamera2 sensor_rotation can be sepecifed in `[0, 90, 180, 270]`, where `0` is the default landscape orientation. 
+
 ##### default_zoom
-Set the default zoom when the camera is connected, `0.5` is the default value. 
+Set the default zoom when the camera is connected. On Android `0.5` is the default value. 
 
 ##### analyze_pixels_resolution
 Sets the pixels resolution passed by `analyze_pixels_callback()`. A scalar, representing the number of pixels on the long edge, the short edge is determined using the aspect ratio. For example `analyze_pixels_resolution = 720`. The default is the minimum of cropped sensor resolution and 1024.
@@ -311,6 +321,11 @@ Default True.  Android and iOS only.
 
 ##### enable_focus_gesture
 Default True. Android only.
+       
+##### enable_video
+Default True. Android only.
+
+By default Preview is configured to implement photo and video capture. Some low end Android devices may not behave correctly if video capture is enabled and `enable_analyze_pixels = True`. In this case set `enable_video = False`. In part this is due to changes to the Android camera api implementatiom. 
        
 ##### imageproxy_data_format
 Applies only to the Android ImageProxy api. 'yuv420' (default) or 'rgba'.
@@ -336,7 +351,7 @@ However on Android a disconnect immediately after a capture has be initiated may
     def stop_capture_video(self):         # Android only
 ```
 
-Video capture is only available on Android or with the OpenCV camera provider. Capturing audio with video is only available on Android.
+Video capture is only available on Android, Picamera2, or OpenCV camera providers. Capturing audio with video is available on Android and Picamera2. OpenCV video quality is poor.
 
 Captures are never mirrored, except a screenshot capture if the Preview is mirrored. Capture resolution is discussed [here](https://github.com/Android-for-Python/Camera4Kivy#capture-resolution).
 
@@ -384,11 +399,17 @@ Change the currently connected camera, camera_id must specify a physically conne
 ```
 
 #### Zoom
-On Android only, zoom_delta() is called by pinch/spread gesture unless disabled.
+On Android and Picamera2, zoom_delta() is called by pinch/spread gesture unless disabled.
 On iOS only, zoom_abs() is called by pinch/spread gesture unless disabled.
 ```python 
     def zoom_delta(self, delta_scale):  
     def zoom_abs(self, scale):  
+```
+
+#### Pan/scroll
+On Picamera2 pan/scroll a zoom'd image with a drag gesture.
+```python 
+    def drag(self, delta_x, delta_y):
 ```
 
 #### Flash
@@ -399,7 +420,7 @@ Android only, and for capture photo only, the value is ignored for video and dat
 ```
 
 #### Torch
-Android only, immediately turns the flash on in any use case. The `state` argument must be in `['on', 'off']`
+Android only, immediately turns the torch on in any use case. The `state` argument must be in `['on', 'off']`
 
 ```python 
     def flash(self, state)
@@ -556,9 +577,15 @@ Image analysis is enabled with a parameter to `connect_camera()`:
 
 `connect_camera(enable_analyze_pixels = True)`
 
-To change the default analysis resolution specify the number of pixels in the long edge (the default is the smaller of 1024 or the cropped resolution):
+To change the default analysis resolution specify the number of pixels in the long edge (the default is the smaller of 1024 or the cropped resolution) as shown below.
 
-`connect_camera(enable_analyze_pixels = True, analyze_pixels_resolution = 720)`
+Also some low end Android devices may not support being configured to analayze images and record video at the same. Since by default Preview is configured to record video, if your device has an unexpected issue set `enable_video=False`.
+
+```python
+connect_camera(enable_analyze_pixels = True,
+               analyze_pixels_resolution = 720,
+               enable_video = False)
+```
 
 The `analyze_pixels_resolution` option provides analysis images with the same orientation and aspect ratio as the Preview. 
 
@@ -647,7 +674,7 @@ Nothing to do with a camera, it is a physical property of a screen. A scalar mea
 
 ## Camera Provider
 
-Camera4Kivy depends on a 'camera provider' to access the OS camera api. On most platforms this uses the same provider as Kivy, with modified defaults.
+Camera4Kivy depends on a 'camera provider' to access the OS camera api. On most platforms this uses the same provider as Kivy, with modified defaults. On Android, iOS, and MacOS there is only a single provider.
 
 | Platform    | Provider      | Requires       |
 |-------------|---------------|----------------|
@@ -656,10 +683,9 @@ Camera4Kivy depends on a 'camera provider' to access the OS camera api. On most 
 | Macos       | [AVFoundation](https://github.com/Android-for-Python/camera4kivy#avfoundation)| OSX >= 10.7    |   
 | Linux       | [Gstreamer](https://github.com/Android-for-Python/camera4kivy#gstreamer)                      |
 |             | [OpenCV](https://github.com/Android-for-Python/camera4kivy#opencv)                      |
-| Rasberry    | [Picamera](https://github.com/Android-for-Python/camera4kivy#picamera)    | <= Buster      |
-|             | [Gstreamer](https://github.com/Android-for-Python/camera4kivy#gstreamer)  |  <= Buster |
-|             |[OpenCV](https://github.com/Android-for-Python/camera4kivy#opencv) |  <= Buster  |
-|             | [Picamera2](https://github.com/Android-for-Python/camera4kivy#picamera2)    | >= Bullseye      |
+| Rasberry    | [Picamera](https://github.com/Android-for-Python/camera4kivy#picamera)(2)    |       |
+|             | [Gstreamer](https://github.com/Android-for-Python/camera4kivy#gstreamer)  |  |
+|             |[OpenCV](https://github.com/Android-for-Python/camera4kivy#opencv) |  |
 | Android     | [CameraX](https://github.com/Android-for-Python/camera4kivy#android-camera-provider)                      |  Android >= 5.0 |
 | iOS         | [AVFoundation](https://github.com/Android-for-Python/camera4kivy#avfoundation)                      |
 
@@ -698,6 +724,8 @@ Set `p4a.hook` to enable the app's use of the camera provider.
 
 `pip3 install opencv-python`
 
+Video recording (no audio) is available, but uncompressed, and may be low quality.
+
 ### GStreamer
 
 Depends on the Linux flavor, but commonly:
@@ -707,10 +735,9 @@ Depends on the Linux flavor, but commonly:
 `sudo apt-get install gstreamer1.0-dev`
 
 ### Picamera
-Pre-installed
+This uses either the Picamera or Picamera2 package, depending on which is installed (they are mutually exclusive).
 
-### Picamera2
-Raspberry PI Bullseye support currently not available.
+If Picamera2 is installed there are additional features for native Pi cameras: higher resolution photos, video (optionally with audio), zoom, pan when zoom'd, sensor rotation. However USB cameras are not currently supported. 
 
 ### AVFoundation
 Pre-installed
