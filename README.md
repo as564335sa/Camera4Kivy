@@ -3,6 +3,8 @@ Camera4Kivy
 
 *Yet Another Camera for Kivy*
 
+**2023-11-13 This repository is archived.**
+
 2023/02/09 : Android users: camerax_provider has been updated to version 0.0.3, and when updating see also [enable_video](#enable_video).
 
 - [Overview](#overview)
@@ -103,7 +105,7 @@ In Python
     self.preview = Preview(aspect_ratio = '16:9')
 ```
 
-To connect the camera unit to the Preview call the preview's `connect_camera()` method, **after on_start()**. For example to connect the camera with the image analysis api enabled :
+To connect the camera unit to the Preview call the preview's `connect_camera()` method, **at least one timestep after on_start()**. For example to connect the camera with the image analysis api enabled :
 
 ```python
     self.preview.connect_camera(enable_analyze_pixels = True)
@@ -149,11 +151,11 @@ Set `p4a.hook` to enable the app's use of the [camera provider](https://github.c
 
 `p4a.hook = camerax_provider/gradle_options.py`
 
-The implementation of the camerax gradle dependencies is architecture specific, an app built for armeabi-v7a will crash on an arm64-v8a device.
+The implementation of the camerax gradle dependencies is architecture specific, an app built for *only* armeabi-v7a will crash on an arm64-v8a device.
 
 #### Run Time Permissions
 
-The following run time permissions must be in be requested in the app. As usual request these in build() or after on_start(). See the examples.
+The following run time permissions must be in be requested in the app. As usual request these at least one timestep after on_start(). See the examples.
 
 Always required: `CAMERA`
 
@@ -355,27 +357,36 @@ Video capture is only available on Android, Picamera2, or OpenCV camera provider
 
 Captures are never mirrored, except a screenshot capture if the Preview is mirrored. Capture resolution is discussed [here](https://github.com/Android-for-Python/Camera4Kivy#capture-resolution).
 
-Captures are saved to `<location>/<subdir>/<name>.jpg` or `.mp4`. 
+Captures are saved to `<location>/<subdir>/<name>.jpg` or `.mp4`.
 
-The default values are as follows. On a desktop `<location>` is the current directory `.`, on Android `<location>` is `DCIM/<appname>`, and on iOS <location> is the Photos App. The value of `<subdir>` is the current date, the format is 'YYYY_MM_DD'. The value of `<name>` is the current time, the format is 'hh_mm_ss_xx' (xx is 1/100 sec).
+
+The default values are as follows:
+
+ - On a desktop `<location>` is the current directory `.`, on Android `<location>` is `DCIM/<appname>`, and on iOS <location> is the Photos App.
+
+ - The value of `<subdir>` is the current date, the format is 'YYYY_MM_DD'.
+
+ - The value of `<name>` is the current time, the format is 'hh_mm_ss_xx' (xx is 1/100 sec).
 
 The [filepath_callback](https://github.com/Android-for-Python/Camera4Kivy#filepath_callback) occurs on capture completion, with an argument that is the actual path for a particular capture. 
 
 Be aware that on Android >= 10 shared storage files are saved in a database, called MediaStore, and not in a file system. The architecture of Android storage is outside the scope of this document. 
 
-The values of `<location>`, `<subdir>`, and `<name>` can be modified with optional keyword arguments to the three `capture_` methods:
+The values of `<location>`, `<subdir>`, and `<name>` can be modified with optional keyword arguments to the three `capture_` methods.
+
+For example `self.capture_photo(subdir='foo', name='bar')`
 
 ##### location
 
 The value replaces the default value of `<location>`.
 
-On a desktop the value is a directory that must exist. 
+ - On a desktop the value is a directory that must exist. 
 
-On Android and iOS the value can only be `'shared'` or `'private'`, other values default to `'shared'`.
+ - On Android and iOS the value can only be `'shared'` or `'private'`, other values default to `'shared'`.
 
-On Android the value `'shared'` specifies Android shared storage `DCIM/<appname>`. The value `'private'` specifies [app local storage](https://github.com/kivy/python-for-android/blob/develop/doc/source/apis.rst#storage-paths) `app_storage_path()/DCIM`. If you want a different location use `'private'` and move the resulting file based on the path provided by filepath_callback.
+ - On Android the value `'shared'` specifies Android shared storage `DCIM/<appname>`. The value `'private'` specifies [app local storage](https://github.com/kivy/python-for-android/blob/develop/doc/source/apis.rst#storage-paths) `app_storage_path()/DCIM`. If you want a different location use `'private'` and move the resulting file based on the path provided by filepath_callback.
 
-On iOS the value `'shared'` specifies the iOS Photos App. The value `'private'` specifies app local storage. For `'shared'` the filepath_callback returns an empty string, for `'private'` it returns the paths to the file in app local storage.
+ - On iOS the value `'shared'` specifies the iOS Photos App. The value `'private'` specifies app local storage. For `'shared'` the filepath_callback returns an empty string, for `'private'` it returns the paths to the file in app local storage.
 
 
 ##### subdir
@@ -737,7 +748,9 @@ Depends on the Linux flavor, but commonly:
 ### Picamera
 This uses either the Picamera or Picamera2 package, depending on which is installed (they are mutually exclusive).
 
-If Picamera2 is installed there are additional features for native Pi cameras: higher resolution photos, video (optionally with audio), zoom, pan when zoom'd, sensor rotation. However USB cameras are not currently supported. 
+If Picamera2 is installed there are additional features for native Pi cameras: higher resolution photos, video (optionally with audio), zoom, pan when zoom'd, sensor rotation.
+
+For Picamera2 USB cameras are available with physical rotation support, including for photo and screen shot capture. However zoom and video capture is not available. 
 
 ### AVFoundation
 Pre-installed
